@@ -3,11 +3,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.module"
+    namespace = "com.mymodule.uuidhoo"
     compileSdk = 36 // Can be modified as needed
 
     defaultConfig {
-        applicationId = "com.example.module"
+        applicationId = "com.mymodule.uuidhoo"
         minSdk = 31
         versionCode = 1
         versionName = "1.0.0"
