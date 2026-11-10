@@ -43,5 +43,6 @@ android {
 
 dependencies {
     compileOnly("androidx.annotation:annotation:1.9.1")
-    compileOnly("io.github.libxposed:api")
+    // 🟢 아래처럼 버전을 추가하세요!
+    compileOnly("io.github.libxposed:api:100") 
 }
