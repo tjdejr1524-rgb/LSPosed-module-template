@@ -1,14 +1,30 @@
-package com.mymodule.uuidhook
+package com.mymodule.uuidhoo
 
 import de.robv.android.xposed.IXposedHookLoadPackage
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedHelpers
 import de.robv.android.xposed.callbacks.XC_LoadPackage
+import java.io.File
 
 class HookMain : IXposedHookLoadPackage {
     override fun handleLoadPackage(lpparam: XC_LoadPackage.LoadPackageParam) {
-        if (lpparam.packageName != "com.ss.android.ugc.trill" && 
-            lpparam.packageName != "com.ss.android.ugc.tiktok.lite") return
+        // 🟢 덕디텍터 패키지 추가
+        val targetPackages = listOf(
+            "com.ss.android.ugc.trill",
+            "com.ss.android.ugc.tiktok.lite",
+            "com.eltavine.duckdetector" // 👈 덕디텍터 추가
+        )
+        if (lpparam.packageName !in targetPackages) return
+
+        fun getFakeUuid(): String {
+            return try {
+                val file = File("/data/local/tmp/fake_uuid.txt")
+                if (file.exists() && file.canRead()) file.readText().trim()
+                else "00000000-0000-0000-0000-000000000000"
+            } catch (e: Exception) {
+                "00000000-0000-0000-0000-000000000000"
+            }
+        }
 
         XposedHelpers.findAndHookMethod(
             "android.os.storage.StorageVolume",
@@ -16,8 +32,7 @@ class HookMain : IXposedHookLoadPackage {
             "getUuid",
             object : XC_MethodHook() {
                 override fun afterHookedMethod(param: MethodHookParam) {
-                    // 여기에 KPM이 생성한 가짜 UUID를 파일에서 읽어와 반환
-                    param.result = "00000000-0000-0000-0000-000000000000"
+                    param.result = getFakeUuid()
                 }
             }
         )
