@@ -3,9 +3,9 @@
     xmlns:tools="http://schemas.android.com/tools">
 
 <application android:label="UUIDHoo">
-    <meta-data android:name="xposedmodule" android:value="true"/>
-    <meta-data android:name="xposeddescription" android:value="UUID/android_id KPM sync"/>
-    <meta-data android:name="xposedminversion" android:value="93"/>
+<meta-data android:name="xposedmodule" android:value="true" />
+<meta-data android:name="xposeddescription" android:value="UUIDHook Module" />
+<meta-data android:name="xposedminversion" android:value="93" />
 </application>
 
 </manifest>
