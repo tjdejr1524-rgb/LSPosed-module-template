@@ -1,5 +1,6 @@
 package com.mymodule.uuidhoo
 
+import android.util.Log
 import de.robv.android.xposed.IXposedHookLoadPackage
 import de.robv.android.xposed.XC_MethodHook
 import de.robv.android.xposed.XposedBridge
@@ -21,14 +22,24 @@ class HookMain : IXposedHookLoadPackage {
         )
     }
 
+    // 클래스가 로드되자마자 찍히는 로그
+    init {
+        Log.d(TAG, "★ HookMain 클래스 로드됨 (init block)")
+        XposedBridge.log("$TAG: ★ HookMain 클래스 로드됨 (init block)")
+    }
+
     override fun handleLoadPackage(lpparam: XC_LoadPackage.LoadPackageParam) {
+        // 함수 호출 즉시 찍히는 로그
+        Log.d(TAG, "★ handleLoadPackage 호출됨: ${lpparam.packageName}")
+
         if (lpparam.packageName !in TARGET_PACKAGES) return
 
+        Log.d(TAG, "★ 타겟 패키지 매칭됨! 후킹을 시작합니다: ${lpparam.packageName}")
         XposedBridge.log("$TAG: attaching to ${lpparam.packageName}")
 
         // ── KPM fake 값 로드 ──
         val (fakeUuid, fakeAndroidId) = loadFakeValues(lpparam.packageName)
-        XposedBridge.log("$TAG: fakeUuid=$fakeUuid, fakeAndroidId=$fakeAndroidId")
+        Log.d(TAG, "로드된 가짜 값 -> UUID: $fakeUuid, AndroidID: $fakeAndroidId")
 
         // ══════════════════════════════════════════════
         // 1) java.util.UUID.randomUUID() 후킹
@@ -42,14 +53,18 @@ class HookMain : IXposedHookLoadPackage {
                     override fun beforeHookedMethod(param: MethodHookParam) {
                         try {
                             param.result = java.util.UUID.fromString(fakeUuid)
+                            Log.d(TAG, "→ UUID.randomUUID() 호출 가로챔: $fakeUuid 반환")
                         } catch (e: Throwable) {
+                            Log.e(TAG, "UUID.fromString 실패: ${e.message}")
                             XposedBridge.log("$TAG: UUID.fromString 실패: ${e.message}")
                         }
                     }
                 }
             )
+            Log.d(TAG, "✓ UUID.randomUUID 후킹 성공")
             XposedBridge.log("$TAG: ✓ UUID.randomUUID 후킹 성공")
         } catch (e: Throwable) {
+            Log.e(TAG, "✗ UUID.randomUUID 후킹 실패: ${e.message}")
             XposedBridge.log("$TAG: ✗ UUID.randomUUID 후킹 실패: ${e.message}")
         }
 
@@ -67,17 +82,20 @@ class HookMain : IXposedHookLoadPackage {
                     override fun beforeHookedMethod(param: MethodHookParam) {
                         if (param.args.size >= 2 && param.args[1] == "android_id") {
                             param.result = fakeAndroidId
+                            Log.d(TAG, "→ Settings.Secure android_id 호출 가로챔: $fakeAndroidId 반환")
                         }
                     }
                 }
             )
+            Log.d(TAG, "✓ Settings.Secure.getString 후킹 성공")
             XposedBridge.log("$TAG: ✓ Settings.Secure.getString 후킹 성공")
         } catch (e: Throwable) {
+            Log.e(TAG, "✗ Settings.Secure.getString 후킹 실패: ${e.message}")
             XposedBridge.log("$TAG: ✗ Settings.Secure.getString 후킹 실패: ${e.message}")
         }
 
         // ══════════════════════════════════════════════
-        // 3) StorageVolume.getUuid() 후킹 (원래 요청 코드 유지, 효과는 불확실)
+        // 3) StorageVolume.getUuid() 후킹
         // ══════════════════════════════════════════════
         try {
             XposedHelpers.findAndHookMethod(
@@ -87,20 +105,20 @@ class HookMain : IXposedHookLoadPackage {
                 object : XC_MethodHook() {
                     override fun afterHookedMethod(param: MethodHookParam) {
                         param.result = fakeUuid
+                        Log.d(TAG, "→ StorageVolume.getUuid 호출 가로챔: $fakeUuid 반환")
                     }
                 }
             )
+            Log.d(TAG, "✓ StorageVolume.getUuid 후킹 성공")
             XposedBridge.log("$TAG: ✓ StorageVolume.getUuid 후킹 성공")
         } catch (e: Throwable) {
+            Log.e(TAG, "✗ StorageVolume.getUuid 후킹 실패: ${e.message}")
             XposedBridge.log("$TAG: ✗ StorageVolume.getUuid 후킹 실패: ${e.message}")
         }
     }
 
     /**
      * KPM이 쓴 fake_uuid.txt를 읽어서 (UUID, android_id) 쌍으로 반환
-     *
-     * 파일 형식: "<fsid_hex_16> <ino_hex_16>\n"
-     * 예:       "a641841865136930 1cacc7e77e7099a9\n"
      */
     private fun loadFakeValues(packageName: String): Pair<String, String> {
         val paths = listOf(
@@ -116,7 +134,6 @@ class HookMain : IXposedHookLoadPackage {
                 val content = file.readText().trim()
                 if (content.isEmpty()) continue
 
-                // 공백 구분 (스페이스, 탭, 개행 등)
                 val parts = content.split("\\s+".toRegex())
                 if (parts.size < 2) continue
 
@@ -125,15 +142,10 @@ class HookMain : IXposedHookLoadPackage {
 
                 // 16자 hex 검증
                 if (fsidHex.length != 16 || inoHex.length != 16) {
-                    XposedBridge.log("$TAG: hex 길이 이상 (fsid=${fsidHex.length}, ino=${inoHex.length})")
+                    Log.w(TAG, "hex 길이 이상 (fsid=${fsidHex.length}, ino=${inoHex.length})")
                     continue
                 }
-                if (!fsidHex.matches(Regex("[0-9a-fA-F]+")) ||
-                    !inoHex.matches(Regex("[0-9a-fA-F]+"))) {
-                    XposedBridge.log("$TAG: hex 문자 이상")
-                    continue
-                }
-
+                
                 // 32자 hex → UUID 형식 (8-4-4-4-12)
                 val hex32 = fsidHex + inoHex
                 val uuid = buildString {
@@ -144,18 +156,19 @@ class HookMain : IXposedHookLoadPackage {
                     append(hex32.substring(20, 32))
                 }
 
-                // android_id는 보통 16자 hex. fsid 그대로 사용.
                 val androidId = fsidHex
 
+                Log.d(TAG, "✓ $path 읽기 성공 -> uuid=$uuid, androidId=$androidId")
                 XposedBridge.log("$TAG: $path 읽기 성공 → uuid=$uuid, androidId=$androidId")
                 return Pair(uuid, androidId)
 
             } catch (e: Throwable) {
+                Log.e(TAG, "✗ $path 읽기 실패: ${e.message}")
                 XposedBridge.log("$TAG: $path 읽기 실패: ${e.message}")
             }
         }
 
-        XposedBridge.log("$TAG: fake_uuid.txt를 찾지 못함. fallback 사용")
+        Log.w(TAG, "fake_uuid.txt를 찾지 못함. fallback 사용")
         return Pair(FALLBACK_UUID, FALLBACK_ANDROID_ID)
     }
 }
