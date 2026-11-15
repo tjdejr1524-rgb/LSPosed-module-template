@@ -40,8 +40,11 @@ android {
         includeInApk = false
     }
 }
+// app/build.gradle.kts
 dependencies {
-    compileOnly("androidx.annotation:annotation:1.9.1")
-    // Vector 2.1에 맞는 API 101 사용
-    compileOnly("io.github.libxposed:api:101.0.0")
+    // 기존 libxposed API (필요하다면 유지)
+    compileOnly("io.github.libxposed:api:101.0.0") 
+
+    // ★ 레거시 de.robv API 추가
+    compileOnly("de.robv.android.xposed:api:82")
 }
