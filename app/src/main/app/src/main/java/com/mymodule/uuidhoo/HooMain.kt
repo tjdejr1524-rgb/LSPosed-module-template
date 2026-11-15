@@ -10,7 +10,7 @@ import java.io.File
 class HookMain : IXposedHookLoadPackage {
 
     companion object {
-        private const val TAG = "UUIDHook"
+        private const val TAG = "UUIDHoo"
         private const val FALLBACK_UUID = "00000000-0000-0000-0000-000000000000"
         private const val FALLBACK_ANDROID_ID = "0000000000000000"
 
