@@ -10,9 +10,12 @@ plugins {
 }
 
 dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
         google()
         mavenCentral()
+        // ★ Xposed API 저장소 추가
+        maven { url = uri("https://api.xposed.info/") }
     }
 }
 
