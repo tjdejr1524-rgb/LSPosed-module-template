@@ -43,7 +43,7 @@ android {
 // app/build.gradle.kts
 dependencies {
     // 기존 libxposed API (필요하다면 유지)
-    compileOnly("io.github.libxposed:api:101.0.0") 
+    compileOnly("io.github.libxposed:api:102.0.0") 
 
     // ★ 레거시 de.robv API 추가
     compileOnly("de.robv.android.xposed:api:82")
