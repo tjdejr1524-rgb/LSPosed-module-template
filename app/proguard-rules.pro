@@ -9,6 +9,11 @@
 -keepclassmembers,allowoptimization class ** implements io.github.libxposed.api.XposedInterface$Hooker {
     public java.lang.Object intercept(io.github.libxposed.api.XposedInterface$Chain);
 }
+-keep class com.mymodule.uuidhoo.HookMain { *; }
+-keep class com.mymodule.uuidhoo.HookMain$UuidHooker { *; }
+-keepclassmembers class * {
+    @io.github.libxposed.api.XposedInterface$AfterInvocation <methods>;
+}
 
 -repackageclasses
 -allowaccessmodification
