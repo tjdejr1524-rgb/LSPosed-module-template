@@ -31,7 +31,7 @@ override fun onPackageLoaded(param: PackageLoadedParam) {
             }
         })
     } catch (t: Throwable) {
-        log("uuid hook failed: $t")
+        log(android.util.Log.ERROR, "UUIDHoo", "uuid hook failed: $t")
     }
 }
     private fun load(packageName: String): String {
