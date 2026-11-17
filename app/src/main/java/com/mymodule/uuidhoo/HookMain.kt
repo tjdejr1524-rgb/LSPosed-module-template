@@ -16,21 +16,24 @@ class HookMain : XposedModule() {
         )
     }
 
-    override fun onPackageLoaded(param: PackageLoadedParam) {
-        if (!param.isFirstPackage) return
-        val packageName = param.packageName
-        if (packageName !in TARGETS) return
+override fun onPackageLoaded(param: PackageLoadedParam) {
+    if (!param.isFirstPackage) return
+    val packageName = param.packageName
+    if (packageName !in TARGETS) return
 
+    try {
         val method = Class.forName("android.os.storage.StorageVolume")
             .getDeclaredMethod("getUuid")
-
+        deoptimize(method)
         hook(method).intercept(object : XposedInterface.Hooker {
             override fun intercept(chain: XposedInterface.Chain): Any {
                 return load(packageName)
             }
         })
+    } catch (t: Throwable) {
+        log("uuid hook failed: $t")
     }
-
+}
     private fun load(packageName: String): String {
         val paths = listOf(
             "/data/user/0/$packageName/files/fake_uuid.txt",
