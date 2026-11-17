@@ -1,76 +1,60 @@
 package com.mymodule.uuidhoo
 
-import android.util.Log
-import de.robv.android.xposed.IXposedHookLoadPackage
-import de.robv.android.xposed.XC_MethodHook
-import de.robv.android.xposed.XposedBridge
-import de.robv.android.xposed.XposedHelpers
-import de.robv.android.xposed.callbacks.XC_LoadPackage
+import io.github.libxposed.api.XposedInterface
+import io.github.libxposed.api.XposedModule
+import io.github.libxposed.api.XposedModuleInterface.ModuleLoadedParam
+import io.github.libxposed.api.XposedModuleInterface.PackageLoadedParam
 import java.io.File
 
-class HookMain : IXposedHookLoadPackage {
+class HookMain(base: XposedInterface, param: ModuleLoadedParam) : XposedModule(base, param) {
 
     companion object {
-        private const val TAG = "UUIDHoo"
-        private const val FALLBACK_VOLUME_UUID = "0000-0000"
-
-        private val TARGET_PACKAGES = listOf(
+        private const val FALLBACK = "0000-0000"
+        private val TARGETS = setOf(
             "com.ss.android.ugc.trill",
             "com.ss.android.ugc.tiktok.lite",
             "com.eltavine.duckdetector"
         )
+        @Volatile
+        var pkg: String = ""
     }
 
-    init {
-        Log.d(TAG, "HookMain init")
-        XposedBridge.log("$TAG: HookMain init")
+    override fun onPackageLoaded(param: PackageLoadedParam) {
+        if (!param.isFirstPackage) return
+        val name = param.packageName
+        if (name !in TARGETS) return
+        pkg = name
+        val method = Class.forName("android.os.storage.StorageVolume")
+            .getDeclaredMethod("getUuid")
+        hook(method, UuidHooker::class.java)
     }
 
-    override fun handleLoadPackage(lpparam: XC_LoadPackage.LoadPackageParam) {
-        if (lpparam.packageName !in TARGET_PACKAGES) return
+    class UuidHooker : XposedInterface.Hooker {
+        companion object {
+            @JvmStatic
+            @XposedInterface.AfterInvocation
+            fun after(callback: XposedInterface.AfterHookCallback) {
+                callback.result = load(pkg)
+            }
 
-        val pkg = lpparam.packageName
-        Log.d(TAG, "attach $pkg")
-        XposedBridge.log("$TAG: attach $pkg")
-
-        try {
-            XposedHelpers.findAndHookMethod(
-                "android.os.storage.StorageVolume",
-                null,
-                "getUuid",
-                object : XC_MethodHook() {
-                    override fun afterHookedMethod(param: MethodHookParam) {
-                        param.result = loadVolumeUuid(pkg)
+            private fun load(packageName: String): String {
+                val paths = listOf(
+                    "/data/data/$packageName/files/fake_uuid.txt",
+                    "/data/user/0/$packageName/files/fake_uuid.txt"
+                )
+                for (path in paths) {
+                    try {
+                        val file = File(path)
+                        if (!file.exists() || !file.canRead()) continue
+                        val hex = file.readText().trim().split("\\s+".toRegex())
+                            .firstOrNull()?.padStart(16, '0')?.takeLast(16)
+                            ?: continue
+                        return (hex.substring(0, 4) + "-" + hex.substring(4, 8)).uppercase()
+                    } catch (_: Throwable) {
                     }
                 }
-            )
-        } catch (e: Throwable) {
-            XposedBridge.log("$TAG: getUuid hook failed: ${e.message}")
-        }
-    }
-
-    /** 호출마다 다시 읽음. fsid 앞 8자 → "XXXX-XXXX" */
-    private fun loadVolumeUuid(packageName: String): String {
-        val paths = listOf(
-            "/data/data/$packageName/files/fake_uuid.txt",
-            "/data/local/tmp/fake_uuid.txt"
-        )
-
-        for (path in paths) {
-            try {
-                val file = File(path)
-                if (!file.exists() || !file.canRead()) continue
-
-                val parts = file.readText().trim().split("\\s+".toRegex())
-                if (parts.isEmpty() || parts[0].isEmpty()) continue
-
-                val fsidHex = parts[0].padStart(16, '0').takeLast(16)
-                return (fsidHex.substring(0, 4) + "-" + fsidHex.substring(4, 8)).uppercase()
-            } catch (e: Throwable) {
-                Log.e(TAG, "$path: ${e.message}")
+                return FALLBACK
             }
         }
-
-        return FALLBACK_VOLUME_UUID
     }
 }
